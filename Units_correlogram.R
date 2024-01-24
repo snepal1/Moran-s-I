@@ -16,7 +16,7 @@ lapply(some_packages, library, character.only=TRUE)
 
 # Read in the data as the point shape file ####################################
 
-filename_df <- readOGR("C:\\Users\\adamp\\Desktop\\moran\\Moran-s-I", layer = 'Both_biomass')
+filename_df <- readOGR("D:\\Moran's\\Moran-s-I", layer = 'Both_biomass')
 
 #mapview(filename_df)
 
@@ -32,7 +32,6 @@ icorrelogram <- function(locations, z, binsize, maxdist){
     neigh <- dnearneigh(x=locations, d1=d.start, d2=d.end, longlat=F)
     wts <- nb2listw(neighbours=neigh, style='B', zero.policy=T)
     mor.i <- moran.mc(x=z, listw=wts, nsim=1000, alternative="greater", zero.policy=T, na.action = na.omit)  # note alternative is for P-value, so only 'significant if positive autocorrelation
-    
     moran.results[i, "probability"]<-mor.i$p.value
     moran.results[i, "dist"]<-(d.end+d.start)/2 
     moran.results[i, "Morans.i"]<-mor.i$statistic 								                #observed moran's i
@@ -43,20 +42,15 @@ icorrelogram <- function(locations, z, binsize, maxdist){
 }
 
 
-
-# Read in the data stired as the point shape file however, treat thme as the polygon
-
-filename_df <- readOGR("C:\\Users\\adamp\\Desktop\\moran\\Moran-s-I", layer = 'Both_biomass')
-
 #mapview(filename_df)
-
+########### Subset the data to required units #################################################
 filename<-subset(filename_df,UNIT==39)
 filename1<-subset(filename_df,UNIT==40)
 filename2<-subset(filename_df,UNIT==43)
 filename3<-subset(filename_df,UNIT==44)
 filename4<-subset(filename_df,UNIT==45)
 
-############# write a function toextract the spatial and non-spatial data that will go
+############# write a function to extract the spatial and non-spatial data that will go
 #in Moran's I calculation function'
 process_data <- function(data) {
   # Combine data and coordinates
@@ -93,8 +87,23 @@ fig_dataRE <- result$fig_dataRA
 coords4 <- result$coords
 
 
-# calculate moran's I and simulated random confidence interval for all response variables
-################## RNA_A
+##################### Check the neighborhood object plot #############################
+
+iweights <- function(locations){
+  # Create an empty plot to initialize the plotting area
+  plot(1, type = "n", xlab = "UTMX", ylab = "UTMY", xlim = c(min(locations[, 1]), max(locations[, 1])),
+       ylim = c(min(locations[, 2]), max(locations[, 2])))
+  
+  # Add the spatial weights using the dnearneigh function
+  neigh <- dnearneigh(x = locations, d1 = 0, d2 = 1000, longlat = FALSE)
+  P <- plot(neigh, coords = locations, add = TRUE, col = "red")
+  
+  return(P)
+}
+
+iweights(coords2)
+############# calculate moran's I and simulated 95 %  confidence envelope ##################################
+################## 
 
 final_out <- data.frame()
 for(i in 1:length(fig_dataRA)){
@@ -122,10 +131,9 @@ for(i in 1:length(fig_dataRA)){
 }
 
 
-
+############### Put it back as a data frame #####################
 fig_dataRNA_A<-rbind(final_out,final_out1)
-View(fig_dataRNA_A)
-#plot correlograms
+#str(fig_dataRNA_A)
 
 ############################## RNAB #####################
 
@@ -155,12 +163,13 @@ for(i in 1:length(fig_dataRB)){
   }
 }
 
+############### Put it back as a data frame #####################
 fig_dataRNA_B<-rbind(final_out2,final_out3)
 
 
 ################################################# RNA-C ###################################
 
-############################## #####################
+############################## #############################################################################
 
 final_out4 <- data.frame()
 for(i in 1:length(fig_dataRC)){
@@ -187,7 +196,7 @@ for(i in 1:length(fig_dataRC)){
   }
 }
 
-
+############### Put it back as a data frame #####################
 fig_dataRNA_c<-rbind(final_out4,final_out5)
 
 
@@ -216,10 +225,10 @@ for(i in 1:length(fig_dataRD)){
     final_out7 <- rbind(final_out7, corr)
   }
 }
-
+############### Put it back as a data frame #####################
 fig_dataRNA_d<-rbind(final_out6,final_out7)
 
-
+############################################## RNA-E #############################################################
 final_out8 <- data.frame()
 for(i in 1:length(fig_dataRE)){
   temp_out <- fig_dataRE[[i]] %>% dplyr::select(Biomass_20)
@@ -245,10 +254,11 @@ for(i in 1:length(fig_dataRE)){
   }
 }
 
+############### Put it back as a data frame #####################
 fig_dataRNA_E<-rbind(final_out8,final_out9)
 
 
-############################ Creating the combined plots usign ggplot2 ##########
+############################ Creating the combined plots usign ggplot2 #########################################
 #plot correlograms
 library(ggplot2)
 
@@ -393,6 +403,7 @@ library(ggplot2)
 
 ################################## Let us do it for the HID units#####################################################################################
 
+############################# Subset the data to the required unit only ###########################################
 
 filename5<-subset(filename_df,UNIT==38)
 filename6<-subset(filename_df,UNIT==41)
@@ -400,6 +411,7 @@ filename7<-subset(filename_df,UNIT==42)
 filename8<-subset(filename_df,UNIT==47)
 filename9<-subset(filename_df,UNIT==48)
 
+################################## Use the function created initially to process the data#########################
 # Return the co-ordinate and the data for unit 38:
 result <- process_data(filename5)
 fig_dataRA5 <- result$fig_dataRA
@@ -454,9 +466,9 @@ for(i in 1:length(fig_dataRA5)){
 
 
 fig_dataRNA_A<-rbind(final_out5,final_out5A)
-#plot correlograms
 
-############################## RNAB#####################
+
+############################## RNAB##################################################################
 
 
 final_out6 <- data.frame()
@@ -748,6 +760,6 @@ x.grob <- textGrob("Lag-distance (m)",
 
 grid.arrange(arrangeGrob(grids_bs, left = y.grob, bottom = x.grob))
 
-################################ End of the run ######################
+################################ End of the run ###########################################################################
 
 

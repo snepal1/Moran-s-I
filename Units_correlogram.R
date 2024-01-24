@@ -1,11 +1,24 @@
 
 rm(list=ls())
 
-#### Moran's I ####
+#### Load the required libraries all at once ################
+#define vector of packages to load ########################
+some_packages <- c('ggplot2', 'dplyr', 'rgdal','spdep','mapview',
+                   'grid','gridExtra')
 
-library(rgdal)
-library(spdep)
-library(dplyr)
+#load all packages at once
+lapply(some_packages, library, character.only=TRUE)
+
+#library(rgdal)
+#library(spdep)
+#library(dplyr)
+#library(mapview)
+
+# Read in the data as the point shape file ####################################
+
+filename_df <- readOGR("C:\\Users\\adamp\\Desktop\\moran\\Moran-s-I", layer = 'Both_biomass')
+
+#mapview(filename_df)
 
 # correlogram function
 icorrelogram <- function(locations, z, binsize, maxdist){
@@ -31,66 +44,65 @@ icorrelogram <- function(locations, z, binsize, maxdist){
 
 
 
-# read in data
-#filename_df <- readOGR("D:/data_groundtruth", layer = 'biomass_both_point')
+# Read in the data stired as the point shape file however, treat thme as the polygon
 
-filename_df <- readOGR("S:\\Biomass\\Biomass_data", layer = 'Both_biomass')
+filename_df <- readOGR("C:\\Users\\adamp\\Desktop\\moran\\Moran-s-I", layer = 'Both_biomass')
+
+#mapview(filename_df)
 
 filename<-subset(filename_df,UNIT==39)
-
-fig_dataRA<-list(cbind(filename@data, filename@coords)%>% 
-                   dplyr::select(coords.x1,coords.x2,Biomass_20,Biomass_19))
-
-coords <- as.matrix(data.frame('x' = fig_dataRA[[1]]$coords.x1, 'y' = fig_dataRA[[1]]$coords.x2))
-
 filename1<-subset(filename_df,UNIT==40)
-
-fig_dataRB<-list(cbind(filename1@data, filename1@coords)%>% 
-                   dplyr::select(coords.x1,coords.x2,Biomass_20,Biomass_19))
-
-coords1 <- as.matrix(data.frame('x' = fig_dataRB[[1]]$coords.x1, 'y' = fig_dataRB[[1]]$coords.x2))
-
-
 filename2<-subset(filename_df,UNIT==43)
-
-fig_dataRC<-list(cbind(filename2@data, filename2@coords)%>% 
-                   dplyr::select(coords.x1,coords.x2,Biomass_20,Biomass_19))
-
-coords2 <- as.matrix(data.frame('x' = fig_dataRC[[1]]$coords.x1, 'y' = fig_dataRC[[1]]$coords.x2))
-
-
 filename3<-subset(filename_df,UNIT==44)
-
-fig_dataRD<-list(cbind(filename3@data, filename3@coords)%>% 
-                   dplyr::select(coords.x1,coords.x2,Biomass_20,Biomass_19))
-
-coords3 <- as.matrix(data.frame('x' = fig_dataRD[[1]]$coords.x1, 'y' = fig_dataRD[[1]]$coords.x2))
-
-
-
-
-
 filename4<-subset(filename_df,UNIT==45)
 
-fig_dataRE<-list(cbind(filename4@data, filename4@coords)%>% 
-                   dplyr::select(coords.x1,coords.x2,Biomass_20,Biomass_19))
+############# write a function toextract the spatial and non-spatial data that will go
+#in Moran's I calculation function'
+process_data <- function(data) {
+  # Combine data and coordinates
+  fig_dataRA<-list(cbind(data@data, data@coords)%>% 
+                     dplyr::select(coords.x1,coords.x2,Biomass_20,Biomass_19))
+  
+  # Extract coordinates and create a matrix
+  coords <- as.matrix(data.frame('x' = fig_dataRA[[1]]$coords.x1, 'y' = fig_dataRA[[1]]$coords.x2))
+  
+  # Return both fig_dataRA and coords in a list
+  return(list(fig_dataRA = fig_dataRA, coords = coords))
+}
 
-coords4 <- as.matrix(data.frame('x' = fig_dataRE[[1]]$coords.x1, 'y' = fig_dataRE[[1]]$coords.x2))
+# Return the co-ordinate and the data for unit 39:
+result <- process_data(filename)
+fig_dataRA <- result$fig_dataRA
+coords <- result$coords
+##### Return the co-ordinate and the data for unit 40:
+result <- process_data(filename1)
+fig_dataRB <- result$fig_dataRA
+coords1 <- result$coords
 
-
+##### Return the co-ordinate and the data for unit 43:
+result <- process_data(filename2)
+fig_dataRC <- result$fig_dataRA
+coords2 <- result$coords
+##### Return the co-ordinate and the data for unit 44:
+result <- process_data(filename3)
+fig_dataRD <- result$fig_dataRA
+coords3 <- result$coords
+##### Return the co-ordinate and the data for unit 45:
+result <- process_data(filename4)
+fig_dataRE <- result$fig_dataRA
+coords4 <- result$coords
 
 
 # calculate moran's I and simulated random confidence interval for all response variables
 ################## RNA_A
+
 final_out <- data.frame()
 for(i in 1:length(fig_dataRA)){
-  year <- names(fig_dataRA[i])
   temp_out <- fig_dataRA[[i]] %>% dplyr::select(Biomass_20)
   for(j in 1:ncol(temp_out)){
     data <- temp_out[,j]
     variable <- colnames(temp_out[j])
     corr <- icorrelogram(locations = coords, data, binsize = 50.1, maxdist = 1000)
-    corr$year = year
     corr$variable = variable
     final_out <- rbind(final_out, corr)
   }
@@ -112,20 +124,19 @@ for(i in 1:length(fig_dataRA)){
 
 
 fig_dataRNA_A<-rbind(final_out,final_out1)
+View(fig_dataRNA_A)
 #plot correlograms
 
-############################## RNAB#####################
+############################## RNAB #####################
 
 
 final_out2 <- data.frame()
 for(i in 1:length(fig_dataRB)){
-  year <- names(fig_dataRB[i])
   temp_out <- fig_dataRB[[i]] %>% dplyr::select(Biomass_20)
   for(j in 1:ncol(temp_out)){
     data <- temp_out[,j]
     variable <- colnames(temp_out[j])
     corr <- icorrelogram(locations = coords1, data, binsize = 50.1, maxdist = 1000)
-    corr$year = year
     corr$variable = variable
     final_out2 <- rbind(final_out2, corr)
   }
@@ -134,35 +145,30 @@ for(i in 1:length(fig_dataRB)){
 
 final_out3 <- data.frame()
 for(i in 1:length(fig_dataRB)){
-  year <- names(fig_dataRB[i])
   temp_out <- fig_dataRB[[i]] %>% dplyr::select(Biomass_19)
   for(j in 1:ncol(temp_out)){
     data <- temp_out[,j]
     variable <- colnames(temp_out[j])
     corr <- icorrelogram(locations = coords1, data, binsize = 50.1, maxdist = 1000)
-    corr$year = year
     corr$variable = variable
     final_out3 <- rbind(final_out3, corr)
   }
 }
 
-
-
 fig_dataRNA_B<-rbind(final_out2,final_out3)
-#plot correlograms
+
+
 ################################################# RNA-C ###################################
 
 ############################## #####################
 
 final_out4 <- data.frame()
 for(i in 1:length(fig_dataRC)){
-  year <- names(fig_dataRC[i])
   temp_out <- fig_dataRC[[i]] %>% dplyr:: select(Biomass_20)
   for(j in 1:ncol(temp_out)){
     data <- temp_out[,j]
     variable <- colnames(temp_out[j])
     corr <- icorrelogram(locations = coords2, data, binsize = 50.1, maxdist = 1000)
-    corr$year = year
     corr$variable = variable
     final_out4 <- rbind(final_out4, corr)
   }
@@ -171,33 +177,28 @@ for(i in 1:length(fig_dataRC)){
 
 final_out5 <- data.frame()
 for(i in 1:length(fig_dataRC)){
-  year <- names(fig_dataRC[i])
   temp_out <- fig_dataRC[[i]] %>% dplyr:: select(Biomass_19)
   for(j in 1:ncol(temp_out)){
     data <- temp_out[,j]
     variable <- colnames(temp_out[j])
     corr <- icorrelogram(locations = coords2, data, binsize = 50.1, maxdist = 1000)
-    corr$year = year
     corr$variable = variable
     final_out5 <- rbind(final_out5, corr)
   }
 }
 
 
-
 fig_dataRNA_c<-rbind(final_out4,final_out5)
-#plot correlograms
+
 
 ############################################## RNA-D #############################################################
 final_out6 <- data.frame()
 for(i in 1:length(fig_dataRD)){
-  year <- names(fig_dataRD[i])
   temp_out <- fig_dataRD[[i]] %>% dplyr::select(Biomass_20)
   for(j in 1:ncol(temp_out)){
     data <- temp_out[,j]
     variable <- colnames(temp_out[j])
     corr <- icorrelogram(locations = coords3, data, binsize = 50.1, maxdist =1000)
-    corr$year = year
     corr$variable = variable
     final_out6 <- rbind(final_out6, corr)
   }
@@ -206,13 +207,11 @@ for(i in 1:length(fig_dataRD)){
 
 final_out7 <- data.frame()
 for(i in 1:length(fig_dataRD)){
-  year <- names(fig_dataRD[i])
   temp_out <- fig_dataRD[[i]] %>% dplyr::select(Biomass_19)
   for(j in 1:ncol(temp_out)){
     data <- temp_out[,j]
     variable <- colnames(temp_out[j])
     corr <- icorrelogram(locations = coords3, data, binsize = 50.1, maxdist = 1000)
-    corr$year = year
     corr$variable = variable
     final_out7 <- rbind(final_out7, corr)
   }
@@ -223,13 +222,11 @@ fig_dataRNA_d<-rbind(final_out6,final_out7)
 
 final_out8 <- data.frame()
 for(i in 1:length(fig_dataRE)){
-  year <- names(fig_dataRE[i])
   temp_out <- fig_dataRE[[i]] %>% dplyr::select(Biomass_20)
   for(j in 1:ncol(temp_out)){
     data <- temp_out[,j]
     variable <- colnames(temp_out[j])
     corr <- icorrelogram(locations = coords4, data, binsize = 50.1, maxdist =1000)
-    corr$year = year
     corr$variable = variable
     final_out8 <- rbind(final_out8, corr)
   }
@@ -238,13 +235,11 @@ for(i in 1:length(fig_dataRE)){
 
 final_out9 <- data.frame()
 for(i in 1:length(fig_dataRE)){
-  year <- names(fig_dataRE[i])
   temp_out <- fig_dataRE[[i]] %>% dplyr::select(Biomass_19)
   for(j in 1:ncol(temp_out)){
     data <- temp_out[,j]
     variable <- colnames(temp_out[j])
     corr <- icorrelogram(locations = coords4, data, binsize = 50.1, maxdist = 1000)
-    corr$year = year
     corr$variable = variable
     final_out9 <- rbind(final_out9, corr)
   }
@@ -253,16 +248,14 @@ for(i in 1:length(fig_dataRE)){
 fig_dataRNA_E<-rbind(final_out8,final_out9)
 
 
-#########################
+############################ Creating the combined plots usign ggplot2 ##########
+#plot correlograms
 library(ggplot2)
 
-#plot correlograms
-
-
-(figA <- ggplot(fig_dataRNA_A) +
-    theme_classic() +
-    geom_hline(yintercept = 0) +
-    geom_point(aes(y = Morans.i, x = dist, color = variable), size = 2) +
+(figA <- ggplot(fig_dataRNA_A)
+  + theme_classic() 
+  + geom_hline(yintercept = 0)+
+    geom_point(aes(y = Morans.i, x = dist, color = variable), size = 2)+
     geom_line(aes(y = Morans.i, x = dist, color = variable), size = 1) +
     geom_line(aes(y = null.lower, x = dist, color = variable), size = 1, linetype = 'dotted') +
     geom_line(aes(y = null.upper, x = dist, color = variable), size = 1, linetype = 'dotted') +
@@ -398,235 +391,196 @@ library(ggplot2)
     ylab("Moran's I") +
     scale_y_continuous(breaks = seq(from = -1, to = 1, by = 0.40), minor_breaks = NULL, limits = c(-0.5, 0.8) ) )
 
-#######################################################################################################################
-
-# read in data
-#filename_df <- readOGR("D:/data_groundtruth", layer = 'biomass_both_point')
-
-filename_df <- readOGR("S:\\Biomass\\Biomass_data", layer = 'Both_biomass')
-
-filename<-subset(filename_df,UNIT==38)
-
-fig_dataRA<-list(cbind(filename@data, filename@coords)%>% 
-                   dplyr::select(coords.x1,coords.x2,Biomass_20,Biomass_19))
-
-coords <- as.matrix(data.frame('x' = fig_dataRA[[1]]$coords.x1, 'y' = fig_dataRA[[1]]$coords.x2))
-
-filename1<-subset(filename_df,UNIT==41)
-
-fig_dataRB<-list(cbind(filename1@data, filename1@coords)%>% 
-                   dplyr::select(coords.x1,coords.x2,Biomass_20,Biomass_19))
-
-coords1 <- as.matrix(data.frame('x' = fig_dataRB[[1]]$coords.x1, 'y' = fig_dataRB[[1]]$coords.x2))
+################################## Let us do it for the HID units#####################################################################################
 
 
-filename2<-subset(filename_df,UNIT==42)
+filename5<-subset(filename_df,UNIT==38)
+filename6<-subset(filename_df,UNIT==41)
+filename7<-subset(filename_df,UNIT==42)
+filename8<-subset(filename_df,UNIT==47)
+filename9<-subset(filename_df,UNIT==48)
 
-fig_dataRC<-list(cbind(filename2@data, filename2@coords)%>% 
-                   dplyr::select(coords.x1,coords.x2,Biomass_20,Biomass_19))
+# Return the co-ordinate and the data for unit 38:
+result <- process_data(filename5)
+fig_dataRA5 <- result$fig_dataRA
+coords5 <- result$coords
+##### Return the co-ordinate and the data for unit 41:
+result <- process_data(filename6)
+fig_dataRB6 <- result$fig_dataRA
+coords6 <- result$coords
 
-coords2 <- as.matrix(data.frame('x' = fig_dataRC[[1]]$coords.x1, 'y' = fig_dataRC[[1]]$coords.x2))
-
-
-filename3<-subset(filename_df,UNIT==47)
-
-fig_dataRD<-list(cbind(filename3@data, filename3@coords)%>% 
-                   dplyr::select(coords.x1,coords.x2,Biomass_20,Biomass_19))
-
-coords3 <- as.matrix(data.frame('x' = fig_dataRD[[1]]$coords.x1, 'y' = fig_dataRD[[1]]$coords.x2))
-
-
-
-
-
-filename4<-subset(filename_df,UNIT==48)
-
-fig_dataRE<-list(cbind(filename4@data, filename4@coords)%>% 
-                   dplyr::select(coords.x1,coords.x2,Biomass_20,Biomass_19))
-
-coords4 <- as.matrix(data.frame('x' = fig_dataRE[[1]]$coords.x1, 'y' = fig_dataRE[[1]]$coords.x2))
-
-
+##### Return the co-ordinate and the data for unit 42:
+result <- process_data(filename7)
+fig_dataRC7 <- result$fig_dataRA
+coords7 <- result$coords
+##### Return the co-ordinate and the data for unit 47:
+result <- process_data(filename8)
+fig_dataRD8 <- result$fig_dataRA
+coords8 <- result$coords
+##### Return the co-ordinate and the data for unit 48:
+result <- process_data(filename9)
+fig_dataRE9 <- result$fig_dataRA
+coords9 <- result$coords
 
 
 # calculate moran's I and simulated random confidence interval for all response variables
 ################## RNA_A
 
-final_out <- data.frame()
-for(i in 1:length(fig_dataRA)){
-  year <- names(fig_dataRA[i])
-  temp_out <- fig_dataRA[[i]] %>% dplyr::select(Biomass_20)
-  for(j in 1:ncol(temp_out)){
-    data <- temp_out[,j]
-    variable <- colnames(temp_out[j])
-    corr <- icorrelogram(locations = coords, data, binsize = 50.1, maxdist = 1000)
-    corr$year = year
-    corr$variable = variable
-    final_out <- rbind(final_out, corr)
-  }
-}
-
-
-final_out1 <- data.frame()
-for(i in 1:length(fig_dataRA)){
-  temp_out <- fig_dataRA[[i]] %>% dplyr::select(Biomass_19)
-  for(j in 1:ncol(temp_out)){
-    data <- temp_out[,j]
-    variable <- colnames(temp_out[j])
-    corr <- icorrelogram(locations = coords, data, binsize = 50.1, maxdist = 1000)
-    corr$variable = variable
-    final_out1 <- rbind(final_out1, corr)
-  }
-}
-
-
-
-fig_dataRNA_A<-rbind(final_out,final_out1)
-#plot correlograms
-
-############################## RNAB#####################
-
-
-final_out2 <- data.frame()
-for(i in 1:length(fig_dataRB)){
-  year <- names(fig_dataRB[i])
-  temp_out <- fig_dataRB[[i]] %>% dplyr::select(Biomass_20)
-  for(j in 1:ncol(temp_out)){
-    data <- temp_out[,j]
-    variable <- colnames(temp_out[j])
-    corr <- icorrelogram(locations = coords1, data, binsize = 50.1, maxdist = 1000)
-    corr$year = year
-    corr$variable = variable
-    final_out2 <- rbind(final_out2, corr)
-  }
-}
-
-
-final_out3 <- data.frame()
-for(i in 1:length(fig_dataRB)){
-  year <- names(fig_dataRB[i])
-  temp_out <- fig_dataRB[[i]] %>% dplyr::select(Biomass_19)
-  for(j in 1:ncol(temp_out)){
-    data <- temp_out[,j]
-    variable <- colnames(temp_out[j])
-    corr <- icorrelogram(locations = coords1, data, binsize = 50.1, maxdist = 1000)
-    corr$year = year
-    corr$variable = variable
-    final_out3 <- rbind(final_out3, corr)
-  }
-}
-
-
-
-fig_dataRNA_B<-rbind(final_out2,final_out3)
-#plot correlograms
-################################################# RNA-C ###################################
-
-############################## #####################
-
-final_out4 <- data.frame()
-for(i in 1:length(fig_dataRC)){
-  year <- names(fig_dataRC[i])
-  temp_out <- fig_dataRC[[i]] %>% dplyr:: select(Biomass_20)
-  for(j in 1:ncol(temp_out)){
-    data <- temp_out[,j]
-    variable <- colnames(temp_out[j])
-    corr <- icorrelogram(locations = coords2, data, binsize = 50.1, maxdist = 1000)
-    corr$year = year
-    corr$variable = variable
-    final_out4 <- rbind(final_out4, corr)
-  }
-}
-
-
 final_out5 <- data.frame()
-for(i in 1:length(fig_dataRC)){
-  year <- names(fig_dataRC[i])
-  temp_out <- fig_dataRC[[i]] %>% dplyr:: select(Biomass_19)
+for(i in 1:length(fig_dataRA5)){
+  temp_out <- fig_dataRA5[[i]] %>% dplyr::select(Biomass_20)
   for(j in 1:ncol(temp_out)){
     data <- temp_out[,j]
     variable <- colnames(temp_out[j])
-    corr <- icorrelogram(locations = coords2, data, binsize = 50.1, maxdist = 1000)
-    corr$year = year
+    corr <- icorrelogram(locations = coords5, data, binsize = 50.1, maxdist = 1000)
     corr$variable = variable
     final_out5 <- rbind(final_out5, corr)
   }
 }
 
 
-
-fig_dataRNA_c<-rbind(final_out4,final_out5)
-#plot correlograms
-
-############################################## RNA-D #############################################################
-final_out6 <- data.frame()
-for(i in 1:length(fig_dataRD)){
-  year <- names(fig_dataRD[i])
-  temp_out <- fig_dataRD[[i]] %>% dplyr::select(Biomass_20)
+final_out5A <- data.frame()
+for(i in 1:length(fig_dataRA5)){
+  temp_out <- fig_dataRA5[[i]] %>% dplyr::select(Biomass_19)
   for(j in 1:ncol(temp_out)){
     data <- temp_out[,j]
     variable <- colnames(temp_out[j])
-    corr <- icorrelogram(locations = coords3, data, binsize = 50.1, maxdist =1000)
-    corr$year = year
+    corr <- icorrelogram(locations = coords5, data, binsize = 50.1, maxdist = 1000)
+    corr$variable = variable
+    final_out5A <- rbind(final_out5A, corr)
+  }
+}
+
+
+
+fig_dataRNA_A<-rbind(final_out5,final_out5A)
+#plot correlograms
+
+############################## RNAB#####################
+
+
+final_out6 <- data.frame()
+for(i in 1:length(fig_dataRB6)){
+  temp_out <- fig_dataRB6[[i]] %>% dplyr::select(Biomass_20)
+  for(j in 1:ncol(temp_out)){
+    data <- temp_out[,j]
+    variable <- colnames(temp_out[j])
+    corr <- icorrelogram(locations = coords6, data, binsize = 50.1, maxdist = 1000)
     corr$variable = variable
     final_out6 <- rbind(final_out6, corr)
   }
 }
 
 
-final_out7 <- data.frame()
-for(i in 1:length(fig_dataRD)){
-  year <- names(fig_dataRD[i])
-  temp_out <- fig_dataRD[[i]] %>% dplyr::select(Biomass_19)
+final_out6A <- data.frame()
+for(i in 1:length(fig_dataRB6)){
+  temp_out <- fig_dataRB6[[i]] %>% dplyr::select(Biomass_19)
   for(j in 1:ncol(temp_out)){
     data <- temp_out[,j]
     variable <- colnames(temp_out[j])
-    corr <- icorrelogram(locations = coords3, data, binsize = 50.1, maxdist = 1000)
-    corr$year = year
+    corr <- icorrelogram(locations = coords6, data, binsize = 50.1, maxdist = 1000)
+    corr$variable = variable
+    final_out6A <- rbind(final_out6A, corr)
+  }
+}
+
+
+
+fig_dataRNA_B<-rbind(final_out6,final_out6A)
+#plot correlograms
+################################################# RNA-C ###################################
+
+############################## #####################
+
+final_out7 <- data.frame()
+for(i in 1:length(fig_dataRC7)){
+  temp_out <- fig_dataRC7[[i]] %>% dplyr:: select(Biomass_20)
+  for(j in 1:ncol(temp_out)){
+    data <- temp_out[,j]
+    variable <- colnames(temp_out[j])
+    corr <- icorrelogram(locations = coords7, data, binsize = 50.1, maxdist = 1000)
     corr$variable = variable
     final_out7 <- rbind(final_out7, corr)
   }
 }
 
-fig_dataRNA_d<-rbind(final_out6,final_out7)
 
-
-final_out8 <- data.frame()
-for(i in 1:length(fig_dataRE)){
-  year <- names(fig_dataRE[i])
-  temp_out <- fig_dataRE[[i]] %>% dplyr::select(Biomass_20)
+final_out7A <- data.frame()
+for(i in 1:length(fig_dataRC7)){
+  temp_out <- fig_dataRC7[[i]] %>% dplyr:: select(Biomass_19)
   for(j in 1:ncol(temp_out)){
     data <- temp_out[,j]
     variable <- colnames(temp_out[j])
-    corr <- icorrelogram(locations = coords4, data, binsize = 50.1, maxdist =1000)
-    corr$year = year
+    corr <- icorrelogram(locations = coords7, data, binsize = 50.1, maxdist = 1000)
+    corr$variable = variable
+    final_out7A <- rbind(final_out7A, corr)
+  }
+}
+
+
+
+fig_dataRNA_c<-rbind(final_out7,final_out7A)
+#plot correlograms
+
+############################################## RNA-D #############################################################
+final_out8 <- data.frame()
+for(i in 1:length(fig_dataRD8)){
+  temp_out <- fig_dataRD8[[i]] %>% dplyr::select(Biomass_20)
+  for(j in 1:ncol(temp_out)){
+    data <- temp_out[,j]
+    variable <- colnames(temp_out[j])
+    corr <- icorrelogram(locations = coords8, data, binsize = 50.1, maxdist =1000)
     corr$variable = variable
     final_out8 <- rbind(final_out8, corr)
   }
 }
 
 
-final_out9 <- data.frame()
-for(i in 1:length(fig_dataRE)){
-  year <- names(fig_dataRE[i])
-  temp_out <- fig_dataRE[[i]] %>% dplyr::select(Biomass_19)
+final_out8A <- data.frame()
+for(i in 1:length(fig_dataRD8)){
+  temp_out <- fig_dataRD8[[i]] %>% dplyr::select(Biomass_19)
   for(j in 1:ncol(temp_out)){
     data <- temp_out[,j]
     variable <- colnames(temp_out[j])
-    corr <- icorrelogram(locations = coords4, data, binsize = 50.1, maxdist = 1000)
-    corr$year = year
+    corr <- icorrelogram(locations = coords8, data, binsize = 50.1, maxdist = 1000)
+    corr$variable = variable
+    final_out8A <- rbind(final_out8A, corr)
+  }
+}
+
+fig_dataRNA_d<-rbind(final_out8,final_out8A)
+
+
+final_out9 <- data.frame()
+for(i in 1:length(fig_dataRE9)){
+  temp_out <- fig_dataRE9[[i]] %>% dplyr::select(Biomass_20)
+  for(j in 1:ncol(temp_out)){
+    data <- temp_out[,j]
+    variable <- colnames(temp_out[j])
+    corr <- icorrelogram(locations = coords9, data, binsize = 50.1, maxdist =1000)
     corr$variable = variable
     final_out9 <- rbind(final_out9, corr)
   }
 }
 
-fig_dataRNA_E<-rbind(final_out8,final_out9)
+
+final_out9A <- data.frame()
+for(i in 1:length(fig_dataRE9)){
+  temp_out <- fig_dataRE9[[i]] %>% dplyr::select(Biomass_19)
+  for(j in 1:ncol(temp_out)){
+    data <- temp_out[,j]
+    variable <- colnames(temp_out[j])
+    corr <- icorrelogram(locations = coords9, data, binsize = 50.1, maxdist = 1000)
+    corr$variable = variable
+    final_out9A <- rbind(final_out9A, corr)
+  }
+}
+
+fig_dataRNA_E<-rbind(final_out9,final_out9A)
 
 
-#########################
-library(ggplot2)
+######################### Plot the correlograms ##############
 
-#plot correlograms
 
 
 (figf <- ggplot(fig_dataRNA_A) +
@@ -636,12 +590,16 @@ library(ggplot2)
     geom_line(aes(y = Morans.i, x = dist, color = variable), size = 1) +
     geom_line(aes(y = null.lower, x = dist, color = variable), size = 1, linetype = 'dotted') +
     geom_line(aes(y = null.upper, x = dist, color = variable), size = 1, linetype = 'dotted') +
-    scale_color_brewer(palette = 'Set1') + ggtitle("F) UNIT-38")+
+    scale_color_brewer(palette = 'Set1') + 
+    scale_color_manual(name = "Legend Title", 
+                      values = c("Biomass_19" = "red", "Biomass_20" = "#0072B2"), 
+                      labels = c("1934", "2016")) +
+   ggtitle("F) UNIT-38")+
     theme(plot.title =element_text(hjust =0))+
     theme_classic(base_line_size = 1, base_rect_size = 1) + 
     theme(legend.position = c(0.8,1), 
           legend.title = element_blank(), 
-          legend.text = element_text(size = 20),
+          legend.text=element_text(size=20),
           axis.ticks.length = unit(0.25, "cm"),
           axis.text.x = element_blank(),
           axis.title.x = element_blank(),
@@ -775,9 +733,9 @@ library(ggplot2)
     ylab("Moran's I") +
     scale_y_continuous(breaks = seq(from = -1, to = 1, by = 0.40), minor_breaks = NULL, limits = c(-0.5, 0.8) ) )
 
-library(cowplot)
-library(grid)
-library(gridExtra)
+#library(cowplot)
+#library(grid)
+#library(gridExtra)
 
 grids_bs <- plot_grid(figA,figf,figB,figg,figC,figh,figD,figi,figE,figj,
                       ncol = 2, align = "v")
@@ -790,7 +748,6 @@ x.grob <- textGrob("Lag-distance (m)",
 
 grid.arrange(arrangeGrob(grids_bs, left = y.grob, bottom = x.grob))
 
-
-
+################################ End of the run ######################
 
 
